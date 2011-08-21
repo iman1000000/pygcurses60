@@ -1,0 +1,58 @@
+Pygcurse Tutorial
+
+By Al Sweigart, http://inventwithpython.com
+
+Pygcurse (pronounced "pig curse") is a curses emulation module for the Pygame framework. You will need Pygame installed in order to use Pygcurse. Pygame can be downloaded for free from http://pygame.org. Pygcurse has been tested to work with Python 2 and Python 3.
+
+The problem with the curses module that comes with Python is that it only works on Unix environments, not Windows. For Windows, there is effbot's excellent Console module at http://effbot.org/zone/console-index.htm. However, there is no single cross-platform console/curses library for Python.
+
+Pygcurse makes use of Pygame to provide a cross-platform text console. A PygcurseSurface object can be used just like any other Surface object in Pygame, making Pygcurse suitable to be used as components in Pygame programs, such as displaying an in-game console window. The curses libraries are also limited in the colors they can use (16, as oppose to 16 million) and cannot use transparency effects. Pygcurse can also make use of any installed font, instead of a single generic console font.
+
+This readme will provide a short tour of using the Pygcurse module and its capabilities. It assumes you have a basic level of familiarity with Pygame.
+
+TABLE OF CONTENTS
+
+
+
+
+"Hello World" with Pygcurse
+Moving the Cursor
+Color
+Copying and Pasting Text
+Multiple PygCurse Windows
+Text Input Mode
+Setting the Tab Value
+Mouse Events with Pygcurse
+ASCII Drawing Functions
+
+
+
+
+Quick Start
+
+Here's a "Hello World" program with Pygcurse:
+
+import pygame
+from pygame.locals import *
+import pygcurse
+import sys
+
+surf = pygcursePygcurseSurface(80, 25)
+windowSurf = pygame.display.set_mode(surf.pixelsize)
+surf.print('Hello world!')
+surf.blitTo(windowSurf)
+
+while True:
+    for event in pygame.event.get():
+        if event.type == QUIT:
+	        pygame.quit()
+			sys.exit()
+
+	pygame.display.update()
+
+
+As you can see, you can create a PygcurseSurface object (specifying the width and height in characters, not pixels), and then call the print() method to write text to it. This isn't enough to make the text appear on the user's screen. You still 
+
+
+
+Current API:
