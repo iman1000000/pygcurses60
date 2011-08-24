@@ -3,6 +3,9 @@ from pygame.locals import *
 
 # TODO - need to profile how pygame renders full string compared to rendering individual chars.
 
+
+# TODO - speed up - cache letters and colors.
+
 """
 # BUGS:
 TODO - cursor blinking
@@ -63,8 +66,10 @@ don't support input() for now.
 
 DEFAULTFGCOLOR = pygame.Color(164, 164, 164, 255)
 DEFAULTBGCOLOR = pygame.Color(0, 0, 0, 255)
+ERASECOLOR = pygame.Color(0, 0, 0, 0)
 
-_NEW_WINDOW = 'new'
+_NEW_WINDOW = 'new_window'
+_FULL_SCREEN = 'full_screen'
 
 class PygcurseSurface():
     def __init__(self, width=80, height=25, font=None, fgcolor=DEFAULTFGCOLOR, bgcolor=DEFAULTBGCOLOR, windowsurface=None):
@@ -96,13 +101,12 @@ class PygcurseSurface():
 
         self._cellwidth, self._cellheight = calcfontsize(self._font)
 
-        self._surfobj = pygame.Surface((self._width * self._cellwidth, self._height * self._cellheight))
-        self._pixelwidth = self._width * self._cellwidth
-        self._pixelheight = self._height * self._cellheight
-
         self._autoupdate = True
         if windowsurface == _NEW_WINDOW:
             self._windowsurface = pygame.display.set_mode((self._cellwidth * width, self._cellheight * height))
+            self._managesDisplay = True
+        elif windowsurface == _FULL_SCREEN:
+            self._windowsurface = pygame.display.set_mode((self._cellwidth * width, self._cellheight * height), pygame.FULLSCREEN)
             self._managesDisplay = True
         else:
             self._windowsurface = windowsurface
@@ -111,6 +115,11 @@ class PygcurseSurface():
         self._autowindowupdate = self._windowsurface is not None # TODO - do we really need this? shouldn't .windowsurface not being None be enough?
         self._tabsize = 8 # TODO - need to implement tabs
 
+        self._pixelwidth = self._width * self._cellwidth
+        self._pixelheight = self._height * self._cellheight
+        self._surfobj = pygame.Surface((self._pixelwidth, self._pixelheight))
+        self._surfobj = self._surfobj.convert_alpha() # TODO - This is needed for erasing, but does this have a performance hit?
+
 
     def print(self, obj, *objs, sep=' ', end='\n', font=None, fgcolor=None, bgcolor=None):
         # NOTE - not thread safe
@@ -118,7 +127,8 @@ class PygcurseSurface():
         writebgcolor = (bgcolor is not None) and bgcolor or self._bgcolor
 
         text = [str(obj)]
-        text.append(str(sep) + str(sep).join([str(x) for x in objs]))
+        if objs:
+            text.append(str(sep) + str(sep).join([str(x) for x in objs]))
         text.append(str(end))
 
         self.write(''.join(text), writefgcolor, writebgcolor)
@@ -141,6 +151,15 @@ class PygcurseSurface():
 
 
     def update(self):
+        """
+        There are three types of updating:
+            1) Updating the PygcurseSurface surface object to match the backend data.
+                (Enabled by default by setting self._autoupdate == True)
+            2) Blitting the PygcurseSurface surface object to the main window
+                (Enabled by setting self._windowsurface to the main window)
+            3) Calling pygame.display.update()
+                (Enabled by default if _windowsurface is set, happens if _autowindowupdate == True)
+        """
         # TODO - as an efficency improvememt I should probably have one 'dirty' variable track if ANY cell has been changed.
         _changed = 0
         # draw to the surfobj all the dirty cells.
@@ -148,10 +167,19 @@ class PygcurseSurface():
             for y in range(self._height):
                 if self._screendirty[x][y]:
                     _changed += 1
+                    self._screendirty[x][y] = False
 
                     # fill in the entire background of the cell
                     cellrect = pygame.Rect(self._cellwidth * x, self._cellheight * y, self._cellwidth, self._cellheight)
+
+                    if self._screenchars[x][y] is None:
+                        self._surfobj.fill(ERASECOLOR, cellrect)
+                        continue
+
                     self._surfobj.fill(self._screenbgcolor[x][y], cellrect)
+
+                    if self._screenchars[x][y] == ' ':
+                        continue # don't need to render anything if it is just a space character.
 
                     # render the character and draw it to the surface
                     charsurf = self._font.render(self._screenchars[x][y], 1, self._screenfgcolor[x][y], self._screenbgcolor[x][y])
@@ -159,13 +187,11 @@ class PygcurseSurface():
                     charrect.centerx = self._cellwidth * x + int(self._cellwidth / 2)
                     charrect.bottom = self._cellheight * (y+1) # TODO - not correct, this would put stuff like g, p, q higher than normal.
                     self._surfobj.blit(charsurf, charrect)
-                    self._screendirty[x][y] = False
-        if _changed:
-            print('PygcurseSurface has been updated, %s cells redrawn.' % _changed)
+        #if _changed:
+        #    print('PygcurseSurface has been updated, %s cells redrawn.' % _changed)
         if self._windowsurface is not None:
             self._windowsurface.blit(self._surfobj, self._surfobj.get_rect())
             if self._autowindowupdate:
-                print('calling pygame.display.update()')
                 pygame.display.update()
 
     _debugcolorkey = {(255,0,0): 'R',
@@ -174,77 +200,77 @@ class PygcurseSurface():
                       (0,0,0): 'b',
                       (255, 255, 255): 'w'}
 
-    def _debugfg(self):
+
+    def _debug(self, returnstr=False, fn=None):
         text = ['+' + ('-' * self._width) + '+\n']
         for y in range(self._height):
             line = ['|']
             for x in range(self._width):
-                r, g, b = self._screenfgcolor[x][y].r, self._screenfgcolor[x][y].g, self._screenfgcolor[x][y].b
-                if (r, g, b) in PygcurseSurface._debugcolorkey:
-                    line.append(PygcurseSurface._debugcolorkey[(r, g, b)])
-                else:
-                    line.append('.')
+                line.append(fn(x, y))
             line.append('|\n')
             text.append(''.join(line))
         text.append('+' + ('-' * self._width) + '+\n')
-        return ''.join(text)
+        if returnstr:
+            return ''.join(text)
+        else:
+            print(''.join(text))
 
-    def _debugbg(self):
-        text = ['+' + ('-' * self._width) + '+\n']
-        for y in range(self._height):
-            line = ['|']
-            for x in range(self._width):
-                r, g, b = self._screenbgcolor[x][y].r, self._screenbgcolor[x][y].g, self._screenbgcolor[x][y].b
-                if (r, g, b) in PygcurseSurface._debugcolorkey:
-                    line.append(PygcurseSurface._debugcolorkey[(r, g, b)])
-                else:
-                    line.append('.')
-            line.append('|\n')
-            text.append(''.join(line))
-        text.append('+' + ('-' * self._width) + '+\n')
-        return ''.join(text)
 
-    def _debugscreen(self):
-        text = ['+' + ('-' * self._width) + '+\n']
-        for y in range(self._height):
-            line = ['|']
-            for x in range(self._width):
-                if self._screenchars[x][y] in (None, '\n', '\t'):
-                    line.append('.')
-                else:
-                    line.append(self._screenchars[x][y])
-            line.append('|\n')
-            text.append(''.join(line))
-        text.append('+' + ('-' * self._width) + '+\n')
-        return ''.join(text)
+    def _debugfgFn(self, x, y):
+        r, g, b = self._screenfgcolor[x][y].r, self._screenfgcolor[x][y].g, self._screenfgcolor[x][y].b
+        if (r, g, b) in PygcurseSurface._debugcolorkey:
+            return PygcurseSurface._debugcolorkey[(r, g, b)]
+        else:
+            return'.'
+    def _debugfg(self, returnstr=False):
+        return self._debug(returnstr=returnstr, fn=self._debugfgFn)
 
-    def _debugdirty(self):
-        text = ['+' + ('-' * self._width) + '+\n']
-        for y in range(self._height):
-            line = ['|']
-            for x in range(self._width):
-                if self._screendirty[x][y]:
-                    line.append('O')
-                else:
-                    line.append('.')
-            line.append('|\n')
-            text.append(''.join(line))
-        text.append('+' + ('-' * self._width) + '+\n')
-        return ''.join(text)
 
+    def _debugbgFn(self, x, y):
+        r, g, b = self._screenbgcolor[x][y].r, self._screenbgcolor[x][y].g, self._screenbgcolor[x][y].b
+        if (r, g, b) in PygcurseSurface._debugcolorkey:
+            return PygcurseSurface._debugcolorkey[(r, g, b)]
+        else:
+            return '.'
+    def _debugbg(self, returnstr=False):
+        return self._debug(returnstr=returnstr, fn=self._debugbgFn)
+
+
+    def _debugcharsFn(self, x, y):
+        if self._screenchars[x][y] in (None, '\n', '\t'):
+            return '.'
+        else:
+            return self._screenchars[x][y]
+    def _debugchars(self, returnstr=False):
+        return self._debug(returnstr=returnstr, fn=self._debugcharsFn)
+
+    def _debugdirtyFn(self, x, y):
+        if self._screendirty[x][y]:
+            return 'O'
+        else:
+            return '.'
+    def _debugdirty(self, returnstr=False):
+        return self._debug(returnstr=returnstr, fn=self._debugdirtyFn)
+
+    def gettopleftpixel(self, cellx, celly):
+        return (cellx * self._cellwidth, celly * self._cellheight)
+
+    def gettoppixel(self, celly):
+        return celly * self._cellheight
+
+    def getleftpixel(self, cellx):
+        return cellx * self._cellwidth
 
     def getcoordinatesatpixel(self, pixelx, pixely):
         """Given the pixel x and y coordinates relative to the PygCurse screen's
         origin, return the cell x and y coordinates that it is over. (Useful
         for finding what cell the mouse cursor is over.) Returns (None, None)
         if the pixel coordinates are not over the screen."""
-        x = int(pixelx / self._cellwidth)
-        if x < 0 or x > self._width:
+        if pixelx < 0 or pixelx >= self._width * self._cellwidth:
             return (None, None)
-        y = int(pixely / self._cellheight)
-        if y < 0 or y > self._height:
+        if pixely < 0 or pixely >= self._height * self._cellheight:
             return (None, None)
-        return x, y
+        return int(pixelx / self._cellwidth), int(pixely / self._cellheight)
 
 
     def getcharatpixel(self, pixelx, pixely):
@@ -274,7 +300,7 @@ class PygcurseSurface():
         bgcolor = getPygameColor(bgcolor)
 
         # create new _screen* data structures
-        newchars = [[' '] * newheight for i in range(newwidth)]
+        newchars = [[None] * newheight for i in range(newwidth)]
         newfg = [[None] * newheight for i in range(newwidth)]
         newbg = [[None] * newheight for i in range(newwidth)]
         newdirty = [[True] * newheight for i in range(newwidth)]
@@ -307,8 +333,6 @@ class PygcurseSurface():
         self._screenbgcolor = newbg
         self._screendirty = newdirty
 
-        print(self._debugdirty())
-
         if self._managesDisplay:
             # resize the pygame window itself
             self._windowsurface = pygame.display.set_mode((self._pixelwidth, self._pixelheight))
@@ -322,8 +346,10 @@ class PygcurseSurface():
             self._fgcolor = fgcolor
             return
         x, y, width, height = self.getregion(x, y, width, height, rect)
+        changed = False
         for ix in range(x, x+width):
             for iy in range(y, y+height):
+                #if sameColor(self._screenfgcolor[ix][iy], fgcolor) # TODO - run profiler to see if this is actually faster
                 self._screenfgcolor[ix][iy] = fgcolor
                 self._screendirty[ix][iy] = True
 
@@ -509,12 +535,12 @@ class PygcurseSurface():
 
     def getchar(self, x, y):
         x, y, width, height = self.getregion(x, y)
-        if x == y == width == height == rect == None:
+        if x == y == width == height == None:
             return None
 
         return self._screenchars[x][y]
 
-    def getchars(self, x=None, y=None, width=None, height=None, rect=None):
+    def getchars(self, x=None, y=None, width=None, height=None, rect=None, gapChar=' '):
         x, y, width, height = self.getregion(x, y, width, height, rect)
         if x == y == width == height == rect == None:
             return []
@@ -523,17 +549,29 @@ class PygcurseSurface():
         for iy in range(y, y + height):
             line = []
             for ix in range(x, x + width):
-                line.append(self._screenchars[ix][iy])
+                if self._screenchars[ix][iy] is None:
+                    line.append(gapChar)
+                else:
+                    line.append(self._screenchars[ix][iy])
             lines.append(''.join(line))
         return lines
 
 
-    def putchar(self, char, x, y):
+    def putchar(self, char, x=None, y=None, fgcolor=None, bgcolor=None):
+        if x is None:
+            x = self._cursorx
+        if y is None:
+            y = self._cursory
         x, y, width, height = self.getregion(x, y)
-        if x == y == width == height == rect == None:
+        if x == y == width == height == None:
             return None
 
-        self._screenchars[x][y] = char
+        if fgcolor is not None:
+            self._screenfgcolor[x][y] = getPygameColor(fgcolor)
+        if bgcolor is not None:
+            self._screenbgcolor[x][y] = getPygameColor(bgcolor)
+
+        self._screenchars[x][y] = char[0]
         self._screendirty[x][y] = True
 
         if self._autoupdate:
@@ -541,15 +579,25 @@ class PygcurseSurface():
 
         return char
 
-    def putchars(self, chars, x=None, y=None, width=None, height=None, rect=None):
+    def putchars(self, chars, x=None, y=None, width=None, height=None, rect=None, fgcolor=None, bgcolor=None):
         # doc - does not modify the cursor. That's how putchars is different from print() or write()
+        # doc - also, putchars does not wrap or cause shifts. TODO!
+        if x is None:
+            x = self._cursorx
+        if y is None:
+            y = self._cursory
 
         # TODO - wait, what if we just want to start at a certain x, y and continue printing. oh yeah, just use write()
+        if width is None:
+            width = self._width # this will be truncated at the right edge of the screen
+        if height is None:
+            height = self._height # this will be truncated at the bottom edge of the screen
+
         x, y, width, height = self.getregion(x, y, width, height)
         if x == y == width == height == rect == None:
             return None
 
-        if type(chars) == list or type(chars) == tuple:
+        if type(chars) in (list, tuple):
             # convert a list/tuple of strings to a single string (this is so that putchars() can work with the return value of getchars())
             chars = '\n'.join(chars)
 
@@ -564,30 +612,31 @@ class PygcurseSurface():
 
             self._screenchars[tempcurx][tempcury] = chars[i]
             self._screendirty[tempcurx][tempcury] = True
+            if fgcolor is not None:
+                self._screenfgcolor[tempcurx][tempcury] = fgcolor
+            if bgcolor is not None:
+                self._screenbgcolor[tempcurx][tempcury] = bgcolor
             tempcurx += 1
 
         if self._autoupdate:
             self.update()
 
-    def erase(self, length=None, x=None, y=None, width=None, height=None, rect=None):
-        # TODO - how do I want this to work?
-        self.fill(' ', (0, 0, 0, 0), (0, 0, 0, 0), x, y, width, height, rect) # TODO - wait, why not None?
+    def erase(self, x=None, y=None, width=None, height=None, rect=None):
+        self.fill(None, None, None, x, y, width, height, rect)
 
-    def fill(self, char=None, fgcolor=None, bgcolor=None, x=None, y=None, width=None, height=None, rect=None):
-        if char is None and fgcolor is None and bgcolor is None:
-            return # all 3 parameters set to None is effectively a nop
-
+    def fill(self, char=' ', fgcolor=None, bgcolor=None, x=None, y=None, width=None, height=None, rect=None):
         x, y, width, height = self.getregion(x, y, width, height, rect)
+        if x == y == width == height == rect == None:
+            return
 
-        for x in range(self._width):
-            for y in range(self._height):
-                if chr is not None:
-                    self._screenchars[x][y] = chr
+        for ix in range(x, x+width):
+            for iy in range(y, y+height):
+                self._screenchars[ix][iy] = char
                 if fgcolor is not None:
-                    self._screenfgcolor[x][y] = fgcolor
+                    self._screenfgcolor[ix][iy] = fgcolor
                 if bgcolor is not None:
-                    self._screenbgcolor[x][y] = bgcolor
-                self._screendirty[x][y] = True
+                    self._screenbgcolor[ix][iy] = bgcolor
+                self._screendirty[ix][iy] = True
 
         if self._autoupdate:
             self.update()
@@ -609,6 +658,16 @@ class PygcurseSurface():
 
 
     def getregion(self, x=None, y=None, width=None, height=None, rect=None):
+        # parameter validation
+        if rect is None:
+            if (width is None) ^ (height is None):
+                raise Exception('Bad argument passed to getregion(), width and height parameters must both be set or both not set.')
+            if (x is None) ^ (y is None):
+                raise Exception('Bad argument passed to getregion(), x and y parameters must both be set or both not set.')
+            if (x is None or y is None) and (width is not None or height is not None):
+                raise Exception('Bad argument passed to getregion(), x and y parameters must be set if width and height are set.')
+
+        # interpret the parameters
         if rect is not None:
             # Supplying a rect parameter overrides the x, y, width, height parameters
             x, y, width, height = rect.left, rect.top, rect.width, rect.height
@@ -629,21 +688,24 @@ class PygcurseSurface():
             width -= (x + width) - self._width
         if y + height > self._height:
             height -= (y + height) - self._height
+        if x < 0:
+            width += x # subtracts, since x is negative
+            x = 0
+        if y < 0:
+            height += y # subtracts, since y is negative
+            y = 0
 
         return x, y, width, height
 
-
     # File-like Object methods:
     def writekeyevent(self, keyevent, fgcolor=None, bgcolor=None):
-        key = keyevent.key
-        if (key >= 32 and key < 128) or key in (ord('\n'), ord('\r'), ord('\t')):
-            # TODO check for shift & capslock.
-            self.write(chr(key), fgcolor=fgcolor, bgcolor=bgcolor)
+        char = interpretKeyEvent(keyevent)
+        if char is not None:
+            self.write(char, fgcolor=fgcolor, bgcolor=bgcolor)
 
 
     def write(self, text, fgcolor=None, bgcolor=None):
         text = str(text)
-        print('write("' + text + '") called')
         if fgcolor is None:
             fgcolor = self._fgcolor
         elif type(fgcolor) == tuple:
@@ -656,40 +718,52 @@ class PygcurseSurface():
         # TODO - we can calculate in advance what how many shifts to do.
 
 
-        """
-        # NOT CURRENTLY WORKING
         # replace tabs with appropriate number of spaces
         i = 0
         tempcursorx = self._cursorx - 1
         while i < len(text):
-            if text[i] == '\t':
-                numspaces = self._tabsize - (i + tempcursorx % self._tabsize)
-                text = text[:i] + (' ' * numspaces) + text[i+1:]
-            tempcursorx += 1
-            if tempcursorx == self._width:
+            if text[i] == '\n':
+                tempcursorx = 0
+            elif text[i] == '\t':
+                numspaces = self._tabsize - ((i+1) + tempcursorx % self._tabsize)
+                if tempcursorx + numspaces >= self._width:
+                    # tabbed past the edge, just go to first
+                    # TODO - this doesn't work at all.
+                    text = text[:i] + (' ' * (self._width - tempcursorx + 1)) + text[i+1:]
+                    tempcursorx += (self._width - tempcursorx + 1)
+                else:
+                    text = text[:i] + (' ' * numspaces) + text[i+1:]
+                    tempcursorx += numspaces
+            else:
+                tempcursorx += 1
+
+            if tempcursorx >= self._width:
                 tempcursorx = 0
             i += 1
-        """
-        text = text.replace('\t', ' ' * self._tabsize) # TODO - replace with proper tab code one day
 
+        #text = text.replace('\t', ' ' * self._tabsize) # TODO - replace with proper tab code one day
+
+        """
         # create a cache of surface objects for each letter in text
         letterSurfs = {}
-        #print('text = %s' % text)
         for letter in text:
-            if ord(letter) in range(32, 128) and letter not in letterSurfs:
-                #print(letter)
+            if ord(letter) in range(33, 128) and letter not in letterSurfs:
                 letterSurfs[letter] = self._font.render(letter, 1, fgcolor, bgcolor)
-            elif letter not in letterSurfs:
+                #letterSurfs[letter] = letterSurfs[letter].convert_alpha() # TODO - wait a sec, I don't think pygame lets fonts have transparent backgrounds.
+            elif letter == ' ':
+                continue
+            elif letter not in letterSurfs and '?' not in letterSurfs:
                 letterSurfs['?'] = self._font.render('?', 1, fgcolor, bgcolor)
+                #letterSurfs['?'] = letterSurfs['?'].convert_alpha()
+        """
 
         for i in range(len(text)):
-            if text[i] in ('\n', '\r'): # TODO - wait, this isn't right. We should be ignoring one of these newlines.
+            if text[i] in ('\n', '\r'): # TODO - wait, this isn't right. We should be ignoring one of these newlines. Otherwise \r\n shows up as two newlines.
                 self._cursory += 1
                 self._cursorx = 0
             else:
                 if ord(text[i]) not in range(32, 128):
                     text = text[:i] + '?' + text[i:] # handle unprintable characters # TODO - fix for unicode and fonts missing characters.
-
                 # set the backend data structures that track the screen state
                 self._screenchars[self._cursorx][self._cursory] = text[i]
                 self._screenfgcolor[self._cursorx][self._cursory] = fgcolor
@@ -721,9 +795,8 @@ class PygcurseSurface():
             self.update()
 
 
-    #read = getchars # these functions do the same thing. # TODO - no, they don't. getchars() returns a list.
     def read(self):
-        pass # TODO
+        return '\n'.join(self.getchars())
 
 
     # Properties:
@@ -774,7 +847,7 @@ class PygcurseSurface():
 
 
     """
-    # FORVERSION2
+    # VER2
     def _propgetfont(self):
         return self._font
 
@@ -794,6 +867,13 @@ class PygcurseSurface():
 
     def _propsetbgcolor(self, value):
         self._bgcolor = getPygameColor(value)
+
+    def _propgetcolors(self):
+        return (self._fgcolor, self._bgcolor)
+
+    def _propsetcolors(self, value):
+        self._fgcolor = getPygameColor(value[0])
+        self._bgcolor = getPygameColor(value[1])
 
 
     def _propgetautoupdate(self):
@@ -879,11 +959,67 @@ class PygcurseSurface():
             self.resize()
 
 
+    def _propgetcellwidth(self):
+        return self._cellwidth
+
+    #def _propsetcellwidth(self, value): # VER2
+
+
+    def _propgetcellheight(self):
+        return self._cellheight
+
+    #def _propsetcellheight(self, value): # VER2
+
+    def _propgetcellsize(self):
+        return (self._cellwidth, self._cellheight)
+
+    #def _propsetcellsize(self, value): # VER2
+
+    def _propgetfont(self):
+        return self._font
+
+    #def _propsetfont(self, value): # VER2
+
+    def _propgetsurface(self):
+        return self._surfobj
+
+
+    def _propgetleft(self):
+        return 0
+    def _propgetright(self):
+        return self._width - 1 # note: this behavior is different from pygame Rect objects, which do not have the -1.
+    def _propgettop(self):
+        return 0
+    def _propgetbottom(self):
+        return self._height - 1 # note: this behavior is different from pygame Rect objects, which do not have the -1.
+    def _propgetcenterx(self):
+        return int(self._width / 2)
+    def _propgetcentery(self):
+        return int(self._height / 2)
+    def _propgettopleft(self):
+        return (0, 0)
+    def _propgettopright(self):
+        return (self._width - 1, 0)
+    def _propgetbottomleft(self):
+        return (0, self._height - 1 )
+    def _propgetbottomright(self):
+        return (self._width - 1, self._height - 1 )
+    def _propgetmidleft(self):
+        return (0, int(self._height / 2))
+    def _propgetmidright(self):
+        return (self._width - 1, int(self._height / 2))
+    def _propgetmidtop(self):
+        return (int(self._width / 2), 0)
+    def _propgetmidbottom(self):
+        return (int(self._width / 2), self._height - 1 )
+
+
     cursorx = property(_propgetcursorx, _propsetcursorx)
     cursory = property(_propgetcursory, _propsetcursory)
     cursor = property(_propgetcursor, _propsetcursor)
     fgcolor = property(_propgetfgcolor, _propsetfgcolor)
     bgcolor = property(_propgetbgcolor, _propsetbgcolor)
+    colors = property(_propgetcolors, _propsetcolors)
     autoupdate = property(_propgetautoupdate, _propsetautoupdate)
     autowindowupdate = property(_propgetautowindowupdate, _propsetautowindowupdate)
     width = property(_propgetwidth, _propsetwidth)
@@ -892,7 +1028,26 @@ class PygcurseSurface():
     pixelwidth = property(_propgetpixelwidth, _propsetpixelwidth)
     pixelheight = property(_propgetpixelheight, _propsetpixelheight)
     pixelsize = property(_propgetpixelsize, _propsetpixelsize)
+    font = property(_propgetfont, None) # Set func will be in VER2
+    cellwidth = property(_propgetcellwidth, None) # Set func will be in VER2
+    cellheight = property(_propgetcellheight, None) # Set func will be in VER2
+    cellsize = property(_propgetcellsize, None) # Set func will be in VER2
+    surface = property(_propgetsurface, None)
 
+    left = property(_propgetleft, None)
+    right = property(_propgetright, None)
+    top = property(_propgettop, None)
+    bottom = property(_propgetbottom, None)
+    centerx = property(_propgetcenterx, None)
+    centery = property(_propgetcentery, None)
+    topleft = property(_propgettopleft, None)
+    topright = property(_propgettopright, None)
+    bottomleft = property(_propgetbottomleft, None)
+    bottomright = property(_propgetbottomright, None)
+    midleft = property(_propgetmidleft, None)
+    midright = property(_propgetmidright, None)
+    midtop = property(_propgetmidtop, None)
+    midbottom = property(_propgetmidbottom, None)
 
 
 def calcfontsize(font):
@@ -922,7 +1077,12 @@ def ismonofont(font):
     return maxwidth - minwidth <= 3 and maxheight - minheight <= 3
 
 
-def getPygameColor(color):
+def isSameColor(color1, color2):
+    c1 = getPygameColor(color1)
+    c2 = getPygameColor(color2)
+    return (c1.r == c2.r) and (c1.g == c2.g) and (c1.b == c2.b) and (c1.a == c2.a)
+
+def getPygameColor(value):
     if type(value) in (tuple, list):
         alpha = len(value) > 3 and value[3] or 255
         return pygame.Color(value[0], value[1], value[2], alpha)
@@ -937,8 +1097,84 @@ def getPygameColor(color):
 
 
 class PygcurseWindow(PygcurseSurface):
-    def __init__(self, width=80, height=25, font=None, fgcolor=DEFAULTFGCOLOR, bgcolor=DEFAULTBGCOLOR):
+    def __init__(self, width=80, height=25, font=None, fgcolor=DEFAULTFGCOLOR, bgcolor=DEFAULTBGCOLOR, fullscreen=False):
         pygame.init()
-        super().__init__(width, height, font, fgcolor, bgcolor, _NEW_WINDOW)
+        fullscreen = fullscreen and _FULL_SCREEN or _NEW_WINDOW
+        super().__init__(width, height, font, fgcolor, bgcolor, fullscreen)
 
 
+class PygcurseLayers():
+    pass # VER2 - TODO - a layer management system so it's easy to draw PygcurseSurface objects on top of each other.
+
+
+_shiftchars = {'`':'~', '1':'!', '2':'@', '3':'#', '4':'$', '5':'%', '6':'^', '7':'&', '8':'*', '9':'(', '0':')', '-':'_', '=':'+', '[':'{', ']':'}', '\\':'|', ';':':', "'":'"', ',':'<', '.':'>', '/':'?'}
+
+def interpretKeyEvent(keyevent):
+    key = keyevent.key
+    if (key >= 32 and key < 128) or key in (ord('\n'), ord('\r'), ord('\t')):
+        caps = bool(keyevent.mod & KMOD_CAPS)
+        shift = bool(keyevent.mod & KMOD_LSHIFT or keyevent.mod & KMOD_RSHIFT)
+        char = chr(key)
+        if char.isalpha() and (caps ^ shift):
+            char = char.upper()
+        elif shift and char in PygcurseSurface._shiftchars:
+            char = PygcurseSurface._shiftchars[char]
+        return char
+    return None
+
+class InputEmu():
+    def __init__(self):
+        self.buffer = []
+        self.cursor = 0
+        self.insertMode = False
+
+    def backspace(self):
+        if self.cursor == 0:
+            return
+        self.cursor -= 1
+        del self.buffer[self.cursor]
+
+
+    def delete(self):
+        if self.cursor == len(self.buffer):
+            return
+        del self.buffer[self.cursor]
+
+
+    def home(self):
+        self.cursor = 0
+
+
+    def end(self):
+        self.cursor = len(self.buffer)
+
+
+    def leftarrow(self):
+        if self.cursor > 0:
+            self.cursor -= 1
+
+
+    def rightarrow(self):
+        if self.cursor <= len(self.buffer):
+            self.cursor += 1
+
+    def paste(text):
+        # TODO - account for insertMode
+
+        if self.cursor == len(self.buffer):
+            # append to end
+            self.buffer.extend(list(str(text)))
+            return
+
+
+        if self.cursor == 0:
+            # prepend to beginning
+            self.buffer = list(str(text)) + self.buffer
+        else:
+            self.buffer = self.buffer[self.cursor:] + list(str(text)) + self.buffer[:self.cursor]
+
+    def interpretkey(self, key, mod):
+        pass # TODO - meant to work with pygame
+
+    def __len__(self):
+        return len(self.buffer)

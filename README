@@ -27,6 +27,17 @@ ASCII Drawing Functions
 
 
 
+Demos
+Pygcurse comes with the following demos:
+	Hello World 1 - Simple Pygcurse program.
+	Hello World 2 - Simple Pygcurse program without using the PygcurseWindow.
+	Fireworks - Demonstrating the color capabilities of Pygame.
+	Rotating Typewriter - Demonstrates how PygcurseSurface objects can be used like pygame.Surface objects.
+	Maze - A demo maze game.
+	Dodger - A demo game that shows the mouse being used.
+	Tic Tac Toe - A game that was formerly written using Python's stdin/stdout text, but updated to use Pygcurse with only a four line change.
+
+
 
 Quick Start
 
