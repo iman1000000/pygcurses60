@@ -194,7 +194,7 @@ def main():
         drawMaze(win, maze, breadcrumbs)
         if solved:
             win.cursor = (win.centerx - 4, win.centery)
-            win.print('Solved!', fgcolor=YELLOW, bgcolor=RED)
+            win.write('Solved!', fgcolor=YELLOW, bgcolor=RED)
             moveLeft = moveRight = moveUp = moveDown = False
         win.putchar('@', playerx, playery, RED, BLACK)
         win.putchar('O', jwmaze.endx, jwmaze.endy, GREEN, BLACK)

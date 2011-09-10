@@ -1,69 +1,35 @@
-Pygcurse Tutorial
+Pygcurse v0.1 alpha
 
-By Al Sweigart, http://inventwithpython.com
-
-Pygcurse (pronounced "pig curse") is a curses emulation module for the Pygame framework. You will need Pygame installed in order to use Pygcurse. Pygame can be downloaded for free from http://pygame.org. Pygcurse has been tested to work with Python 2 and Python 3.
-
-The problem with the curses module that comes with Python is that it only works on Unix environments, not Windows. For Windows, there is effbot's excellent Console module at http://effbot.org/zone/console-index.htm. However, there is no single cross-platform console/curses library for Python.
-
-Pygcurse makes use of Pygame to provide a cross-platform text console. A PygcurseSurface object can be used just like any other Surface object in Pygame, making Pygcurse suitable to be used as components in Pygame programs, such as displaying an in-game console window. The curses libraries are also limited in the colors they can use (16, as oppose to 16 million) and cannot use transparency effects. Pygcurse can also make use of any installed font, instead of a single generic console font.
-
-This readme will provide a short tour of using the Pygcurse module and its capabilities. It assumes you have a basic level of familiarity with Pygame.
-
-TABLE OF CONTENTS
+http://inventwithpython.com/pygcurse
 
 
+Pygcurse (pronounced "pig curse") is a curses library emulator that runs on top of the Pygame framework. It provides an easy way to create text adventures, rougelikes, and console-style applications.
+
+Unfortunately, the curses library that comes with the Python standard library does not work on Windows. The excellent Console module from effbot provides curses-like features, but it only runs on Windows and not Mac/Linux. By using Pygame, Pygcurse is able to run on all platforms.
+
+Pygcurse provides several benefits over normal text-based stdio programs:
+
+    1) Color text and background.
+    2) The ability to move the cursor and print text anywhere in the console window.
+    3) The ability to make console apps that make use of the mouse.
+    4) The ability to have programs respond to individual key presses, instead of waiting for the user to type an entire string and press enter (as with input()/raw_input()).
+    5) Since the console window that Pygcurse uses is just a Pygame surface object, additional drawing and transformations can be applied to it. Multiple consoles can also be used in the same program.
+
+Pygcurse requires Pygame to be installed. Pygame can be downloaded from http://pygame.org
+
+Pygcurse was developed by Al Sweigart (al@inventwithpython.com)
+https://github.com/asweigart/pygcurse
 
 
-"Hello World" with Pygcurse
-Moving the Cursor
-Color
-Copying and Pasting Text
-Multiple PygCurse Windows
-Text Input Mode
-Setting the Tab Value
-Mouse Events with Pygcurse
-ASCII Drawing Functions
+NOTE FROM THE AUTHOR:
+This module is still in alpha and may have bugs. Please submit any bug reports to the github.com page. Also, this module comes with several demo programs:
 
+- demo_hello.py       : A basic Hello World program using Pygcurse.
+- demo_dodger.py      : A game where the mouse controls the player, who must dodge the falling green blocks for as long as possible.
+- demo_maze.py        : A maze game where the user must use the arrow keys to move the player towards the green exit.
+- demo_reversi.py     : An example of converting a previously stdio text-based program into a Pygcurse program with minimal effort.
+- demo_tictactoe.py   : Another game that was formerly a text-based program.
+- demo_shadowtest.py  : A test program that demonstrates Pygcurse's tinting and shadow features, as well as the line drawing function.
+- demo_textboxtest.py : A test program that demonstrates Pygcurse's PygcurseTextbox class, which makes it easy to display text boxes on the screen.
 
-
-Demos
-Pygcurse comes with the following demos:
-	Hello World 1 - Simple Pygcurse program.
-	Hello World 2 - Simple Pygcurse program without using the PygcurseWindow.
-	Fireworks - Demonstrating the color capabilities of Pygame.
-	Rotating Typewriter - Demonstrates how PygcurseSurface objects can be used like pygame.Surface objects.
-	Maze - A demo maze game.
-	Dodger - A demo game that shows the mouse being used.
-	Tic Tac Toe - A game that was formerly written using Python's stdin/stdout text, but updated to use Pygcurse with only a four line change.
-
-
-
-Quick Start
-
-Here's a "Hello World" program with Pygcurse:
-
-import pygame
-from pygame.locals import *
-import pygcurse
-import sys
-
-surf = pygcursePygcurseSurface(80, 25)
-windowSurf = pygame.display.set_mode(surf.pixelsize)
-surf.print('Hello world!')
-surf.blitTo(windowSurf)
-
-while True:
-    for event in pygame.event.get():
-        if event.type == QUIT:
-	        pygame.quit()
-			sys.exit()
-
-	pygame.display.update()
-
-
-As you can see, you can create a PygcurseSurface object (specifying the width and height in characters, not pixels), and then call the print() method to write text to it. This isn't enough to make the text appear on the user's screen. You still 
-
-
-
-Current API:
+Feel free to play around with them. Email me any questions/comments you have. I'm very much interested in expanding this module with new features (or fixing any bugs).

@@ -91,7 +91,7 @@ def main():
 
         # draw baddies to screen
         for baddie in baddies:
-            win.fill('#', GREEN, BLACK, baddie['x'], baddie['y'], baddie['size'], baddie['size'])
+            win.fill('#', GREEN, BLACK, (baddie['x'], baddie['y'], baddie['size'], baddie['size']))
 
         if not gameOver:
             playercolor = WHITE
@@ -109,7 +109,7 @@ def showStartScreen():
     while checkForKeyPress() is None:
         win.fill(bgcolor=BLACK)
         win.putchars('Pygcurse Dodger', win.centerx-8, win.centery, fgcolor=TEXTCOLOR)
-        if int(time.time() * 2) % 2 == 0:
+        if int(time.time() * 2) % 2 == 0: # flashing
             win.putchars('Press a key to start!', win.centerx-11, win.centery+1, fgcolor=TEXTCOLOR)
         win.update()
 
