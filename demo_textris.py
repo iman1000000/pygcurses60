@@ -1,6 +1,6 @@
 # Textris (a Tetris clone)
 # By Al Sweigart al@inventwithpython.com
-# Creative Commons BY-NC-SA 3.0 US
+# Simplified BSD License, Copyright 2011 Al Sweigart
 
 import random, time, pygame, sys
 import pygcurse as pygcurse

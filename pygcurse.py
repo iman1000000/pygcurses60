@@ -1,7 +1,10 @@
 """
+Please forgive any typos or errors in the comments, I'll be cleaning them up as frequently as I can.
+
+
 Pygcurse v0.1 alpha
 
-Pygcurse (pronounced "pig curse") is a curses library emulator that runs on top of the Pygame framework. It provides an easy way to create text adventures, rougelikes, and console-style applications.
+Pygcurse (pronounced "pig curse") is a curses library emulator that runs on top of the Pygame framework. It provides an easy way to create text adventures, roguelikes, and console-style applications.
 
 Unfortunately, the curses library that comes with the Python standard library does not work on Windows. The excellent Console module from effbot provides curses-like features, but it only runs on Windows and not Mac/Linux. By using Pygame, Pygcurse is able to run on all platforms.
 
@@ -17,6 +20,35 @@ Pygcurse requires Pygame to be installed. Pygame can be downloaded from http://p
 
 Pygcurse was developed by Al Sweigart (al@inventwithpython.com)
 https://github.com/asweigart/pygcurse
+
+
+Simplified BSD License:
+
+Copyright 2011 Al Sweigart. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are
+permitted provided that the following conditions are met:
+
+   1. Redistributions of source code must retain the above copyright notice, this list of
+      conditions and the following disclaimer.
+
+   2. Redistributions in binary form must reproduce the above copyright notice, this list
+      of conditions and the following disclaimer in the documentation and/or other materials
+      provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY Al Sweigart ''AS IS'' AND ANY EXPRESS OR IMPLIED
+WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL Al Sweigart OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+The views and conclusions contained in the software and documentation are those of the
+authors and should not be interpreted as representing official policies, either expressed
+or implied, of Al Sweigart.
 """
 
 import copy
@@ -26,34 +58,8 @@ import textwrap
 import pygame
 from pygame.locals import *
 
-# TODO - put this note somewhere: print will by default use the set background color. putchar will jsut use None. (Is this another argument for letting None be the default color?)
-
 """
-List of TODO
-packaging and pypi.
-set up website and bug tracker
-
-arrange modules: pygcurse, pygcurse.ui
-
-Turtle stuff
-Sprite mapping (and also being able to explicitly set the cell size so they match)
-General optimization and speed ups
-Primitive drawing functions
-UI Widgets
-    Pyperclip integration for copy/paste and callbacks for keystrokes in input() (can be used for ctrl-v paste, or esc to quit)
-    Highlight text in input() for copying/pasting (also set up allowHighlight and default ctrl-v behavior)
-Code comments
-Sphynx documentation
-TESTING!!!
-DEMOS!!!
-
-
-TODO - make tabsize variable?
-
-TODO - add something so that when we autodisplayupdate, we can specify where the surface should be drawn.
-
-The point of using this is that Windows does not have a curses module built in, and it is not code-compatible with Linux curses.
-Also, lets you print anywhere on the screen, in color, with nice fonts, and you can use the mouse and not block while entering text.
+Some nomenclature in this module's comments explained:
 
 Cells:
 The space for each character is called a cell in this module. Cells are all of an identical size, which is based on the font being used. (only a single font of a single size can be used in a PygcurseSurface object. Cell coordinates refer to the positions of characters on the surface. Pixel coordinates refer to the position of each pixel.
@@ -68,6 +74,13 @@ Several Pygcurse functions take colors for their parameters. These can almost al
     3) An RGBA tuple of four integers, 0 to 255 (like Pygame uses)
     4) A string such as 'blue', 'lime', or 'gray' (or any of the strings listed in the colornames gloal dictionary. This dict can be updated with more colors if the user wants.)
     5) None, which means use whatever color the cell already uses.
+
+Region parameters:
+A "region" defines an area of the surface. It can be the following formats:
+    1) Four-integer tuple (x, y, width, height)
+    2) Four-integer tuple (x, y, None, None) which means x,y and extending to the right & bottom edge of the surface
+    3) None or (None, None, None, None) which means the entire surface
+    4) pygame.Rect object
 
 Note about flickering: If your program is experiencing a lot of flicker, than you should disable the self._autoupdate member. By default, this is enabled and the screen is redrawn after each method call that makes a change to the screen.
 """

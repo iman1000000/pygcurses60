@@ -1,3 +1,5 @@
+# Simplified BSD License, Copyright 2011 Al Sweigart
+
 import pygcurse, pygame, sys
 from pygame.locals import *
 win = pygcurse.PygcurseWindow(40, 25)

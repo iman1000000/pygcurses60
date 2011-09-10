@@ -2,6 +2,7 @@
 # By Al Sweigart al@inventwithpython.com
 
 # This program is a demo for the Pygcurse module.
+# Simplified BSD License, Copyright 2011 Al Sweigart
 
 import pygame, random, sys, time, pygcurse
 from pygame.locals import *

@@ -3,6 +3,7 @@
 # Maze Generation code by Joe Wingbermuehle
 
 # This program is a demo for the Pygcurse module.
+# Simplified BSD License, Copyright 2011 Al Sweigart
 
 import pygcurse, pygame, sys, random, time
 from pygame.locals import *

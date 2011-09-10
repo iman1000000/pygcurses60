@@ -4,13 +4,18 @@ program. You can play the original program by commenting out the following
 five lines. This demostrates how stdio programs can be converted to Pygcurse
 programs with minimal effort.
 
-Note that this conversion only works for Python 3, since print in Python 2
-is a statement rather than a function.
+Simplified BSD License, Copyright 2011 Al Sweigart
 """
 import pygcurse
 win = pygcurse.PygcurseWindow(50, 25, 'Reversi')
 print = win.pygprint
 input = win.input
+# To get this to work in Python 2, comment the previous two lines and
+# uncomment the following lines: (And also modify the print() calls in the code
+# to get rid of the "end" keyword argument.
+#import sys
+#sys.stdout = win
+#input = win.raw_input
 win.setscreencolors('aqua', 'black', clear=True)
 #===========================================================================
 
