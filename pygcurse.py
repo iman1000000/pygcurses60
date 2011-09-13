@@ -136,7 +136,7 @@ class PygcurseSurface(object):
     """
     _pygcurseClass = 'PygcurseSurface'
 
-    def __init__(self, width=80, height=25, font=None, fgcolor=DEFAULTFGCOLOR, bgcolor=DEFAULTBGCOLOR, windowsurface=None):
+    def __init__(self, width=24, height=18, font=None, fgcolor=DEFAULTFGCOLOR, bgcolor=DEFAULTBGCOLOR, windowsurface=None):
         """
         Creates a new PygcurseSurface object.
 
@@ -201,7 +201,7 @@ class PygcurseSurface(object):
 
         self._autoupdate = True
         if windowsurface == _NEW_WINDOW:
-            self._windowsurface = pygame.display.set_mode((self._cellwidth * width, self._cellheight * height))
+            self._windowsurface = pygame.display.set_mode((320,240))
             self._managesdisplay = True
         elif windowsurface == FULLSCREEN:
             self._windowsurface = pygame.display.set_mode((self._cellwidth * width, self._cellheight * height), pygame.FULLSCREEN)
@@ -1727,7 +1727,7 @@ def pygprint(self, obj='', *objs, sep=' ', end='\n', fgcolor=None, bgcolor=None,
 class PygcurseWindow(PygcurseSurface):
     _pygcurseClass = 'PygcurseWindow'
 
-    def __init__(self, width=80, height=25, caption=None, font=None, fgcolor=DEFAULTFGCOLOR, bgcolor=DEFAULTBGCOLOR, fullscreen=False):
+    def __init__(self, width=24, height=18, caption=None, font=None, fgcolor=DEFAULTFGCOLOR, bgcolor=DEFAULTBGCOLOR, fullscreen=False):
         pygame.init()
         self._fullscreen = fullscreen
         fullscreen = fullscreen and FULLSCREEN or _NEW_WINDOW
