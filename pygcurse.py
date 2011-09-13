@@ -2368,7 +2368,9 @@ class PygcurseTextbox:
     pixelsize   = property(_propgetsize, _propsetsize)
     size        = property(_propgetsize, _propsetsize)
 
-_shiftchars = {'`':'~', '1':'!', '2':'@', '3':'#', '4':'$', '5':'%', '6':'^', '7':'&', '8':'*', '9':'(', '0':')', '-':'_', '=':'+', '[':'{', ']':'}', '\\':'|', ';':':', "'":'"', ',':'<', '.':'>', '/':'?'}
+_shiftchars = {',':';', '.':':', '@':'/', '?':'(', '!':')', "'":'&'}
+
+_phonechars = {'1':'r', '2':'t', '3':'y', '*':'u', '4':'f', '5':'g', '6':'h', '#':'j', '7':'v', '8':'b', '9':'n', '0':'m', ']':'@', '-':'?', ';':'!'}
 
 def interpretkeyevent(keyEvent):
     """Returns the character represented by the pygame.event.Event object in keyEvent. This makes adjustments for the shift key and capslock."""
@@ -2377,6 +2379,8 @@ def interpretkeyevent(keyEvent):
         caps = bool(keyEvent.mod & KMOD_CAPS)
         shift = bool(keyEvent.mod & KMOD_LSHIFT or keyEvent.mod & KMOD_RSHIFT)
         char = chr(key)
+        if char in _phonechars:
+            char = _phonechars[char]
         if char.isalpha() and (caps ^ shift):
             char = char.upper()
         elif shift and char in _shiftchars:
